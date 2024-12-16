@@ -1,0 +1,54 @@
+services:
+  webapp:
+    image: ${DOCKER_REGISTRY-}webapp
+    build:
+      context: .
+      dockerfile: WebApp/Dockerfile
+    ports:
+      - "80:80"
+    depends_on:
+      - webapi
+    networks:
+      - app-network
+
+  webapi:
+    image: ${DOCKER_REGISTRY-}webapi
+    build:
+      context: .
+      dockerfile: WebApi/Dockerfile
+    depends_on:
+      - db
+      - redis
+    environment:
+      ASPNETCORE_ENVIRONMENT: "Development"
+      ASPNETCORE_URLS: "http://+:5000"
+      # Connection string to MySQL database (note the hostname 'db' matches the service name)
+      ConnectionStrings__DefaultConnection: "Server=db;Port=3306;Database=myappdb;User Id=myappuser;Password=myapppwd"
+      # Redis configuration for caching, etc.
+      Redis__Configuration: "redis:6379"
+    ports:
+      - "81:80"  # Expose the webapi on host port 5000 (optional)
+    networks:
+      - app-network
+
+  db:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpwd
+      MYSQL_DATABASE: myappdb
+      MYSQL_USER: myappuser
+      MYSQL_PASSWORD: myapppwd
+    networks:
+      - app-network
+    # No need to map ports to the host unless you want to connect directly from the host machine
+    # The webapi service can access 'db' internally on port 3306
+
+  redis:
+    image: redis:latest
+    networks:
+      - app-network
+    # No host port mapping needed unless you'd like direct host access to Redis
+
+networks:
+  app-network:
+    driver: bridge
